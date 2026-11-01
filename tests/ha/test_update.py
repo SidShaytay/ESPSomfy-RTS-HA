@@ -39,7 +39,7 @@ def check_again(hass) -> None:
     async_fire_time_changed(hass, dt_util.utcnow() + update.RELEASE_CHECK_INTERVAL)
 
 
-def latest(hass) -> str | None:
+def latest_version(hass) -> str | None:
     """The latest version, None while the entity is unavailable."""
     return update_state(hass).attributes.get("latest_version")
 
@@ -102,7 +102,7 @@ async def test_only_higher_numbers_are_an_update(hass, entry, device, fw, expect
         ("beta", None),
     ],
 )
-def test_release_numbers(version, numbers):
+def test_the_numbers_leave_out_what_follows(version, numbers):
     """A version's X.Y.Z, without what follows them."""
     assert update.release_numbers(version) == numbers
 
@@ -127,7 +127,7 @@ async def test_the_latest_is_unknown_until_github_answers(hass, entry, device):
     device.release = (200, {"tag_name": "v4.0.1"})
     check_again(hass)
     await until(lambda: update_state(hass).state == STATE_ON)
-    assert latest(hass) == "v4.0.1"
+    assert latest_version(hass) == "v4.0.1"
     await hass.config_entries.async_unload(entry.entry_id)
 
 
@@ -142,7 +142,7 @@ async def test_a_failed_check_keeps_the_last_release(hass, loaded, device):
     )
     await hass.async_block_till_done()
     assert update_state(hass).state == STATE_ON
-    assert latest(hass) == "v4.0.1"
+    assert latest_version(hass) == "v4.0.1"
 
 
 async def test_a_later_release_replaces_the_last(hass, loaded, device):
@@ -150,19 +150,19 @@ async def test_a_later_release_replaces_the_last(hass, loaded, device):
     await until(lambda: update_state(hass).state == STATE_ON)
     device.release = (200, {"tag_name": "v4.1.0"})
     check_again(hass)
-    await until(lambda: latest(hass) == "v4.1.0")
+    await until(lambda: latest_version(hass) == "v4.1.0")
 
 
-async def test_a_release_without_its_page_or_notes(device, host):
-    """The page is the tag's when GitHub leaves it out; the notes empty."""
+async def test_a_release_without_its_page_links_its_tag(device, host):
+    """The page is the tag's when GitHub leaves it out; no notes are empty ones."""
     device.release = (200, {"tag_name": "v4.0.1", "html_url": None, "body": None})
     async with aiohttp.ClientSession() as session:
         release = await update.fetch_latest_release(session)
-    assert release == {
-        "version": "v4.0.1",
-        "url": "https://github.com/cjkas/ESPSomfy-RTS/releases/tag/v4.0.1",
-        "notes": "",
-    }
+    assert release == update.Release(
+        version="v4.0.1",
+        url="https://github.com/cjkas/ESPSomfy-RTS/releases/tag/v4.0.1",
+        notes="",
+    )
 
 
 @pytest.mark.parametrize(

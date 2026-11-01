@@ -6,7 +6,7 @@ import asyncio
 from datetime import datetime, timedelta
 import logging
 import re
-from typing import Any, cast
+from typing import Any, NamedTuple, cast
 
 import aiohttp
 
@@ -34,6 +34,19 @@ RELEASE_CHECK_INTERVAL = timedelta(hours=6)
 _RELEASE_NUMBERS = re.compile(r"v?(\d+)\.(\d+)\.(\d+)")
 
 
+class Release(NamedTuple):
+    """A firmware release on GitHub."""
+
+    version: str
+    url: str
+    notes: str
+
+
+def release_page(version: str) -> str:
+    """The GitHub page of the release tagged version."""
+    return f"https://github.com/cjkas/ESPSomfy-RTS/releases/tag/{version}"
+
+
 def release_numbers(version: str) -> tuple[int, ...] | None:
     """A version's X.Y.Z, without what follows (.beta, -rc1); None without one."""
     if match := _RELEASE_NUMBERS.match(version):
@@ -41,7 +54,7 @@ def release_numbers(version: str) -> tuple[int, ...] | None:
     return None
 
 
-async def fetch_latest_release(session: aiohttp.ClientSession) -> dict[str, str] | None:
+async def fetch_latest_release(session: aiohttp.ClientSession) -> Release | None:
     """The latest release's version, page and notes; None when GitHub can't say.
 
     GitHub's latest release is never a draft or a pre-release.
@@ -68,13 +81,11 @@ async def fetch_latest_release(session: aiohttp.ClientSession) -> dict[str, str]
         return None
     url = data.get("html_url")
     notes = data.get("body")
-    return {
-        "version": version,
-        "url": url
-        if isinstance(url, str) and url
-        else f"https://github.com/cjkas/ESPSomfy-RTS/releases/tag/{version}",
-        "notes": notes if isinstance(notes, str) else "",
-    }
+    return Release(
+        version=version,
+        url=url if isinstance(url, str) and url else release_page(version),
+        notes=notes if isinstance(notes, str) else "",
+    )
 
 
 async def async_setup_entry(
@@ -111,7 +122,7 @@ class ESPSomfyRTSUpdateEntity(ESPSomfyEntity, UpdateEntity):
         self._app_progress = 100
         self._total_progress = 100
         # Protocol 2's latest release, from GitHub; None until GitHub says.
-        self._release: dict[str, str] | None = None
+        self._release: Release | None = None
         if controller.api.protocol == 2:
             # The firmware is updated from its own page (the firmware's
             # ADR 0007): this tells of a newer release, without installing it.
@@ -216,7 +227,7 @@ class ESPSomfyRTSUpdateEntity(ESPSomfyEntity, UpdateEntity):
     def latest_version(self) -> str | None:
         """Latest version available for install."""
         if self._controller.api.protocol == 2:
-            return self._release["version"] if self._release else None
+            return self._release.version if self._release else None
         if self.coordinator.check_for_update is False:
             return None
         if (latest := self.coordinator.latest_version) is None:
@@ -234,14 +245,14 @@ class ESPSomfyRTSUpdateEntity(ESPSomfyEntity, UpdateEntity):
     def release_url(self) -> str | None:
         """URL to the full release notes of the latest version available."""
         if self._controller.api.protocol == 2:
-            return self._release["url"] if self._release else None
+            return self._release.url if self._release else None
         if (version := self.latest_version) is None:
             return None
-        return f"https://github.com/cjkas/ESPSomfy-RTS/releases/tag/{version}"
+        return release_page(version)
 
     async def async_release_notes(self) -> str | None:
         """The latest release's notes, from GitHub."""
-        return self._release["notes"] if self._release else None
+        return self._release.notes if self._release else None
 
     async def async_install(
         self, version: str | None, backup: bool, **kwargs: Any
