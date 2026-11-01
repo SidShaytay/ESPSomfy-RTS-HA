@@ -72,6 +72,25 @@ async def test_the_latest_release_installed_is_up_to_date(hass, entry, device):
     await hass.config_entries.async_unload(entry.entry_id)
 
 
+async def test_any_other_release_is_an_update(hass, entry, device):
+    """A beta isn't put in order: a release that isn't it is an update."""
+    device.fw = "v4.1.0.beta"
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await until(lambda: update_state(hass).state == STATE_ON)
+    assert update_state(hass).attributes["installed_version"] == "v4.1.0.beta"
+    await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_flashing_the_latest_release_is_up_to_date(hass, loaded, device):
+    """The device back with the latest release installed: no update."""
+    await until(lambda: update_state(hass).state == STATE_ON)
+    device.fw = "v4.0.1"
+    # Flashed, the device reboots: its socket closes and comes back.
+    await device.close_sockets()
+    await until(lambda: update_state(hass).state == STATE_OFF)
+    assert update_state(hass).attributes["installed_version"] == "v4.0.1"
+
+
 async def test_the_latest_is_unknown_until_github_answers(hass, entry, device):
     """A check that fails leaves it unknown; the next one tells."""
     device.release = (503, {"message": "busy"})

@@ -99,6 +99,8 @@ class FakeDevice:
         self.ws_status: int | None = None
         # The hello sent; None for a socket that opens and says nothing.
         self.hello: dict | None = HELLO
+        # The firmware version the sync's header gives, which the client takes.
+        self.fw: str = HELLO["d"]["fw"]
         # Close each socket as soon as it opens, as with every slot taken.
         self.close_at_once = False
         # Frames sent right after hello, before the sync.
@@ -317,6 +319,8 @@ class FakeDevice:
                 if not d:
                     continue
                 f = {**f, "d": d}
+            if "h" in f["d"]:
+                f = {**f, "d": {**f["d"], "h": {**f["d"]["h"], "fw": self.fw}}}
             frames.append(json.dumps(f))
         return frames
 

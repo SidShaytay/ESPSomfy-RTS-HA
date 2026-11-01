@@ -175,6 +175,17 @@ class ESPSomfyRTSUpdateEntity(ESPSomfyEntity, UpdateEntity):
                 self._total_progress = int((self._fw_progress + self._app_progress) / 2)
                 self.async_write_ha_state()
 
+    def version_is_newer(self, latest_version: str, installed_version: str) -> bool:
+        """On protocol 2, any release but the one installed is an update.
+
+        The firmware's tags (v4.0.0.beta) aren't all SemVer, so they aren't
+        put in order: on a beta newer than the latest release, that release
+        shows as an update.
+        """
+        if self._controller.api.protocol == 2:
+            return latest_version != installed_version
+        return super().version_is_newer(latest_version, installed_version)
+
     @property
     def available(self) -> bool:
         """Indicates whether the shade is available."""
