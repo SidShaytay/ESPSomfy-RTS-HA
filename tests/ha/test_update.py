@@ -72,13 +72,39 @@ async def test_the_latest_release_installed_is_up_to_date(hass, entry, device):
     await hass.config_entries.async_unload(entry.entry_id)
 
 
-async def test_any_other_release_is_an_update(hass, entry, device):
-    """A beta isn't put in order: a release that isn't it is an update."""
-    device.fw = "v4.1.0.beta"
+@pytest.mark.parametrize(
+    ("fw", "expected"),
+    [
+        ("v4.0.0", STATE_ON),
+        ("v4.0.0.beta", STATE_ON),
+        ("v4.0.1.beta", STATE_OFF),
+        ("v4.1.0.beta", STATE_OFF),
+        ("v4.0.2", STATE_OFF),
+    ],
+)
+async def test_only_higher_numbers_are_an_update(hass, entry, device, fw, expected):
+    """X.Y.Z are compared; what follows them (.beta) is left out."""
+    device.fw = fw
     assert await hass.config_entries.async_setup(entry.entry_id)
-    await until(lambda: update_state(hass).state == STATE_ON)
-    assert update_state(hass).attributes["installed_version"] == "v4.1.0.beta"
+    await until(lambda: update_state(hass).state == expected)
+    assert update_state(hass).attributes["installed_version"] == fw
     await hass.config_entries.async_unload(entry.entry_id)
+
+
+@pytest.mark.parametrize(
+    ("version", "numbers"),
+    [
+        ("v4.0.1", (4, 0, 1)),
+        ("4.0.1", (4, 0, 1)),
+        ("v4.0.0.beta", (4, 0, 0)),
+        ("v4.10.0-rc1", (4, 10, 0)),
+        ("v4.0", None),
+        ("beta", None),
+    ],
+)
+def test_release_numbers(version, numbers):
+    """A version's X.Y.Z, without what follows them."""
+    assert update.release_numbers(version) == numbers
 
 
 async def test_flashing_the_latest_release_is_up_to_date(hass, loaded, device):

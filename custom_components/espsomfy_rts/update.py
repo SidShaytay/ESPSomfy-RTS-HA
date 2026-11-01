@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timedelta
 import logging
+import re
 from typing import Any, cast
 
 import aiohttp
@@ -30,6 +31,14 @@ _LOGGER = logging.getLogger(__name__)
 # Assistant asks GitHub, which has the memory and TLS for it.
 LATEST_RELEASE_URL = "https://api.github.com/repos/cjkas/ESPSomfy-RTS/releases/latest"
 RELEASE_CHECK_INTERVAL = timedelta(hours=6)
+_RELEASE_NUMBERS = re.compile(r"v?(\d+)\.(\d+)\.(\d+)")
+
+
+def release_numbers(version: str) -> tuple[int, ...] | None:
+    """A version's X.Y.Z, without what follows (.beta, -rc1); None without one."""
+    if match := _RELEASE_NUMBERS.match(version):
+        return tuple(int(n) for n in match.groups())
+    return None
 
 
 async def fetch_latest_release(session: aiohttp.ClientSession) -> dict[str, str] | None:
@@ -176,14 +185,15 @@ class ESPSomfyRTSUpdateEntity(ESPSomfyEntity, UpdateEntity):
                 self.async_write_ha_state()
 
     def version_is_newer(self, latest_version: str, installed_version: str) -> bool:
-        """On protocol 2, any release but the one installed is an update.
+        """On protocol 2, a release with higher X.Y.Z numbers is an update.
 
-        The firmware's tags (v4.0.0.beta) aren't all SemVer, so they aren't
-        put in order: on a beta newer than the latest release, that release
-        shows as an update.
+        The firmware's tags (v4.0.0.beta) aren't all SemVer: what follows the
+        numbers is left out, so v4.0.0 is no update for v4.0.0.beta.
         """
         if self._controller.api.protocol == 2:
-            return latest_version != installed_version
+            latest = release_numbers(latest_version)
+            installed = release_numbers(installed_version)
+            return latest is not None and installed is not None and latest > installed
         return super().version_is_newer(latest_version, installed_version)
 
     @property
