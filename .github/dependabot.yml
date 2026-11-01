@@ -26,6 +26,10 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    # Leave the >= floors alone: CI installs the newest release anyway, and
+    # a raised floor clashes with the exact pins of the Home Assistant the
+    # harness below installs (#17, #18, #19).
+    versioning-strategy: increase-if-necessary
     cooldown:
       default-days: 7
     ignore:
