@@ -21,7 +21,7 @@ Firmware 4.0.0 replaced the HTTP API on port 8081 and the socket on port 8080 wi
 # Installation
 Install it with HACS as a [custom repository](https://hacs.xyz/docs/faq/custom_repositories/): add `https://github.com/cjkas/ESPSomfy-RTS-HA` with the type **Integration**, or use the button above. Then restart Home Assistant.
 
-You can also install it by hand: copy `custom_components/espsomfy_rts` into the `config/custom_components` directory of your Home Assistant, and restart it.
+You can also install it by hand: unzip `espsomfy_rts.zip` from a [release](https://github.com/cjkas/ESPSomfy-RTS-HA/releases) into `config/custom_components/espsomfy_rts` of your Home Assistant, and restart it.
 
 If you installed rstrouse's version before, remove it from HACS before adding this one: both install as `espsomfy_rts`, so only one can be installed at a time.
 

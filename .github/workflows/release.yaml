@@ -1,9 +1,10 @@
 name: Release
 
-# Adds espsomfy_rts.zip to each release: the integration's tracked files,
-# with a signed attestation that this workflow made it from the release's
-# commit. HACS installs from the tag's source, not from this zip; it is for
-# manual installs and for checking an install against.
+# Adds espsomfy_rts.zip to each release: the integration's tracked files with
+# the release's version written in, and a signed attestation that this
+# workflow made it from the release's commit. HACS installs this zip
+# (zip_release in hacs.json), so until it is uploaded HACS can't install the
+# release. Then commits the version to the release's branch.
 on:
   release:
     types: [published]
@@ -16,7 +17,7 @@ jobs:
     name: Publish release
     runs-on: ubuntu-latest
     permissions:
-      contents: write       # the release's files
+      contents: write       # the release's files, the version commit
       id-token: write       # Sigstore signs the attestation
       attestations: write
 
@@ -26,14 +27,21 @@ jobs:
         with:
           persist-credentials: false
 
-      # Only the tracked files, at the zip's root: what goes into
-      # custom_components/espsomfy_rts. The commit's date on every file, so
-      # the same commit always gives the same zip and SHA256SUMS.
+      # Fails on a tag that isn't a version, so the release gets no zip.
+      - name: Set version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: bash .github/set_version.sh "$TAG"
+
+      # Only the tracked files, with the version, at the zip's root: what goes
+      # into custom_components/espsomfy_rts. The commit's date on every file,
+      # so the same commit and tag always give the same zip and SHA256SUMS.
       - name: Zip the integration
         run: |
           mkdir dist
+          git add custom_components/espsomfy_rts
           git archive --format=zip --mtime="$(git log -1 --format=%cI)" \
-            -o dist/espsomfy_rts.zip HEAD:custom_components/espsomfy_rts
+            -o dist/espsomfy_rts.zip "$(git write-tree):custom_components/espsomfy_rts"
           cd dist
           sha256sum * > SHA256SUMS
           cat SHA256SUMS
@@ -49,3 +57,26 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.release.tag_name }}
         run: gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+
+      # The release's branch as it is now, not the tag.
+      - name: Check out the release's branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.release.target_commitish }}
+          persist-credentials: true # pushes the version commit
+
+      # Nothing to commit when the job runs again for the same release.
+      - name: Commit version update
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          TARGET: ${{ github.event.release.target_commitish }}
+        run: |
+          bash .github/set_version.sh "$TAG"
+          if git diff --quiet; then
+            echo "$TARGET already has $TAG"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore: bump version to $TAG"
+          git push origin "HEAD:$TARGET"

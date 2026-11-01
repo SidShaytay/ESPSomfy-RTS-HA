@@ -29,6 +29,15 @@ jobs:
       - name: Integration tests in Home Assistant's harness
         run: uv run --no-project --python 3.13 --with-requirements requirements_test_ha.txt -- pytest tests/ha
 
+  release-scripts:
+    runs-on: "ubuntu-latest"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Test the release scripts
+        run: bash tests/scripts/test_set_version.sh
+
   # ruff's bandit rules (S) only, so editors keep their own ruff settings.
   security-lint:
     runs-on: "ubuntu-latest"

@@ -20,10 +20,10 @@ Each release after 3.0.3 has `espsomfy_rts.zip`, the integration's files, with a
 gh attestation verify espsomfy_rts.zip --repo cjkas/ESPSomfy-RTS-HA
 ```
 
-HACS installs the same files from the release's tag, so you can also compare an install in `custom_components/espsomfy_rts` with the zip's contents.
+From 3.0.4 HACS installs this zip, so you can also compare an install in `custom_components/espsomfy_rts` with its contents.
 
 ## How the repo is kept clean
 
 - Every action in the workflows is pinned to a commit. Two of them, hassfest and the HACS validation, run a container image their owners update, so those two checks follow upstream whatever the pin. Dependabot proposes updates to the actions and the test requirements after a week's cooldown.
-- The workflows can only read the repo's contents, except the release job, which adds the zip. The scanning jobs can also report to the Security tab.
+- The workflows can only read the repo's contents, except the release job, which adds the zip and commits the release's version to `main`. The scanning jobs can also report to the Security tab.
 - [CodeQL](.github/workflows/codeql.yaml) scans the Python and the workflows on every PR, ruff's security rules check the integration, [zizmor](.github/workflows/zizmor.yaml) lints the workflows, and [OpenSSF Scorecard](.github/workflows/scorecard.yaml) rates the repo's practices. Findings are on the repo's Security tab.
