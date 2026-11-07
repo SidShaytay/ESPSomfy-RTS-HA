@@ -81,6 +81,8 @@ class FakeDevice:
 
     def __init__(self) -> None:
         """Initialize a device under None, as a real one is out of the box."""
+        self.group_targets = False
+        self.sync = SYNC
         self.security_mode = MODE_NONE
         self.username = ""
         self.password = ""
@@ -313,12 +315,14 @@ class FakeDevice:
     def _sync_frames(self, skip_schema: bool) -> list[str]:
         """The recorded sync, without the schema's rows for a client that has it."""
         frames = []
-        for f in SYNC:
+        for f in self.sync:
             if skip_schema and f["t"] == TYPES["sync"]:
                 d = {k: v for k, v in f["d"].items() if k not in ROWS}
                 if not d:
                     continue
                 f = {**f, "d": d}
+            if self.group_targets and "T" in f["d"]:
+                f = {**f, "d": {**f["d"], "T": [*f["d"]["T"], [55, "groupTarget"]]}}
             if "h" in f["d"]:
                 f = {**f, "d": {**f["d"], "h": {**f["d"]["h"], "fw": self.fw}}}
             frames.append(json.dumps(f))
@@ -338,7 +342,7 @@ class FakeDevice:
             if msg.type != WSMsgType.TEXT:
                 continue
             f = json.loads(msg.data)
-            name = TYPE_NAMES.get(f["t"])
+            name = "groupTarget" if self.group_targets and f["t"] == 55 else TYPE_NAMES.get(f["t"])
             if name == "next":
                 if sync:
                     await ws.send_str(sync.pop(0))

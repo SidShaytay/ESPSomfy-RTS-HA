@@ -324,9 +324,11 @@ class ESPSomfyGroup(CoverGroup, ESPSomfyEntity):
         await self._controller.api.stop_group(self._group_id)
 
     async def async_set_cover_position(self, **kwargs: Any) -> None:
-        """Use the native group remote for HomeKit's endpoint positions."""
+        """Let capable firmware plan percentages in logical closed coordinates."""
         position = int(kwargs[ATTR_POSITION])
-        if position == 100:
+        if self._controller.api.supports_group_target:
+            await self._controller.api.position_group(self._group_id, 100 - position)
+        elif position == 100:
             await self.async_open_cover(**kwargs)
         elif position == 0:
             await self.async_close_cover(**kwargs)

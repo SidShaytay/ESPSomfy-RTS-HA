@@ -1147,6 +1147,25 @@ class ESPSomfyAPI:
         """Send the command to stop the group."""
         await self.group_command({"groupId": group_id, "command": "my"})
 
+    @property
+    def supports_group_target(self) -> bool:
+        """Use the advertised operation, including while reconnecting.
+
+        Keeping the last schema on disconnect prevents a target from changing
+        into a legacy fan-out just because its connection was lost.
+        """
+        return (
+            self.protocol == 2
+            and self._schema is not None
+            and "groupTarget" in self._schema.type_numbers
+        )
+
+    async def position_group(self, group_id: int, position: int):
+        """Request a logical closed percentage; firmware plans each member."""
+        if not self.supports_group_target:
+            raise HomeAssistantError("Firmware does not support native group targets")
+        await self._op("groupTarget", {"groupId": group_id, "target": position})
+
     async def position_shade(self, shade_id: int, position: int):
         """Send the command to position the shade."""
         await self.shade_command({"shadeId": shade_id, "target": position})

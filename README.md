@@ -33,6 +33,10 @@ If the device's security is set to a PIN or a username and password, Home Assist
 # Functionality
 Once configured you can open, close and set the position of your shades from Home Assistant. The integration follows each shade's position however it was moved, including from a Telis remote or the ESPSomfy RTS web page. Shades can be added to your dashboards and automated with services.
 
+Group percentage controls, including Apple Home through HomeKit Bridge, use controller-side movement planning when the firmware advertises native group targets. Compatible members start together over the group remote and stop at their own estimated target times. On older firmware, fully open/closed requests use the existing group controls; intermediate percentages use individual member targets.
+
+Positions remain time-based estimates: an accepted command does not confirm physical movement. A refused native group target is reported as an error, so check the controller connection and configuration before retrying.
+
 ![image](https://user-images.githubusercontent.com/47839015/213933858-95042e9e-0874-4e58-8123-87146439a20e.png)
 
 Each device gets a cover for every shade and group, switches for dry contacts and sun sensors, sunny and windy sensors, reboot and backup buttons, and diagnostic sensors. The [Entities](https://github.com/cjkas/ESPSomfy-RTS-HA/wiki/Entities) page lists them all.
