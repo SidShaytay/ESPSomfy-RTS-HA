@@ -31,6 +31,8 @@ Home Assistant finds ESPSomfy RTS devices on your network on its own (over mDNS)
 If the device's security is set to a PIN or a username and password, Home Assistant asks for them. When the device stops accepting them, for instance after you change them there, Home Assistant asks for them again under Settings &rarr; Devices & Services.
 
 # Functionality
+Group sliders and Apple Home percentage requests use the firmware’s native group target capability when available. Compatible shutters share one start press, then stop individually using their travel times. Older firmware keeps native group commands for fully open/closed requests and individual movement for intermediate positions. RTS positions remain estimates because motors do not report their position.
+
 Once configured you can open, close and set the position of your shades from Home Assistant. The integration follows each shade's position however it was moved, including from a Telis remote or the ESPSomfy RTS web page. Shades can be added to your dashboards and automated with services.
 
 ![image](https://user-images.githubusercontent.com/47839015/213933858-95042e9e-0874-4e58-8123-87146439a20e.png)

@@ -16,6 +16,7 @@ Assistant looks up for the update entity.
 from __future__ import annotations
 
 import asyncio
+from copy import deepcopy
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 import json
@@ -98,7 +99,10 @@ class FakeDevice:
         # Old firmware has no /ws: set this to the status it answers instead.
         self.ws_status: int | None = None
         # The hello sent; None for a socket that opens and says nothing.
-        self.hello: dict | None = HELLO
+        self.hello: dict | None = deepcopy(HELLO)
+        # Per-instance fixtures let tests advertise capabilities added by firmware.
+        self.sync = deepcopy(SYNC)
+        self.type_names = dict(TYPE_NAMES)
         # The firmware version the sync's header gives, which the client takes.
         self.fw: str = HELLO["d"]["fw"]
         # Close each socket as soon as it opens, as with every slot taken.
@@ -121,6 +125,7 @@ class FakeDevice:
         self.backup_reply = (200, '{"version": 23, "shades": []}')
         self.backup_delay = 0.0
         self.legacy = False
+        self.legacy_groups: list[dict] = []
         # (route, body) of each command to the HTTP API.
         self.puts: list[tuple[str, dict | None]] = []
         # The status and JSON GitHub's latest release answers with.
@@ -269,7 +274,7 @@ class FakeDevice:
                 "connType": "Wifi",
                 "rooms": [],
                 "shades": shades,
-                "groups": [],
+                "groups": self.legacy_groups,
             }
         )
 
@@ -305,7 +310,7 @@ class FakeDevice:
             return ws
         self.sockets.append(ws)
         try:
-            await self._serve(ws, skip_schema=known == HELLO["d"]["sh"])
+            await self._serve(ws, skip_schema=self.hello is not None and known == self.hello["d"]["sh"])
         finally:
             self.sockets.remove(ws)
         return ws
@@ -313,7 +318,7 @@ class FakeDevice:
     def _sync_frames(self, skip_schema: bool) -> list[str]:
         """The recorded sync, without the schema's rows for a client that has it."""
         frames = []
-        for f in SYNC:
+        for f in self.sync:
             if skip_schema and f["t"] == TYPES["sync"]:
                 d = {k: v for k, v in f["d"].items() if k not in ROWS}
                 if not d:
@@ -338,7 +343,7 @@ class FakeDevice:
             if msg.type != WSMsgType.TEXT:
                 continue
             f = json.loads(msg.data)
-            name = TYPE_NAMES.get(f["t"])
+            name = self.type_names.get(f["t"])
             if name == "next":
                 if sync:
                     await ws.send_str(sync.pop(0))
